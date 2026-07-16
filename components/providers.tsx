@@ -10,25 +10,42 @@ function announceWaiting(worker: ServiceWorker | null) {
   if (worker) window.dispatchEvent(new CustomEvent("tailor-sw-update", { detail: worker }))
 }
 
+function scheduleIdle(task: () => void) {
+  if ("requestIdleCallback" in window) {
+    const id = window.requestIdleCallback(task, { timeout: 2500 })
+    return () => window.cancelIdleCallback(id)
+  }
+  const id = globalThis.setTimeout(task, 900)
+  return () => globalThis.clearTimeout(id)
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
+  useEffect(() => scheduleIdle(() => {
     if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return
     let registration: ServiceWorkerRegistration | undefined
     void navigator.serviceWorker.register("/sw.js").then((value) => {
-      registration = value; announceWaiting(value.waiting)
-      value.addEventListener("updatefound", () => { const worker = value.installing; worker?.addEventListener("statechange", () => { if (worker.state === "installed" && navigator.serviceWorker.controller) announceWaiting(worker) }) })
+      registration = value
+      announceWaiting(value.waiting)
+      value.addEventListener("updatefound", () => {
+        const worker = value.installing
+        worker?.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller) announceWaiting(worker)
+        })
+      })
     })
     const check = () => { if (navigator.onLine) void registration?.update() }
-    window.addEventListener("online", check); window.addEventListener("focus", check)
-    return () => { window.removeEventListener("online", check); window.removeEventListener("focus", check) }
-  }, [])
-  useEffect(() => {
+    window.addEventListener("online", check)
+    window.addEventListener("focus", check)
+  }), [])
+
+  useEffect(() => scheduleIdle(() => {
     void db.settings.get("main").then(async (settings) => {
       if (!settings?.autoBackup || !settings.backupSecret || settings.backupSchedule === "manual") return
       const interval = settings.backupSchedule === "daily" ? 86_400_000 : 604_800_000
       const due = !settings.lastBackupAt || Date.now() - new Date(settings.lastBackupAt).getTime() >= interval
       if (due) await saveBackupRecord(await encryptBackup(settings.backupSecret))
     }).catch(() => undefined)
-  }, [])
+  }), [])
+
   return <ThemeProvider attribute="class" defaultTheme="light" enableSystem>{children}<Toaster position="top-center" richColors dir="rtl" /></ThemeProvider>
 }
