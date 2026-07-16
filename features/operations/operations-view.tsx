@@ -15,6 +15,7 @@ import type { TailorOperation } from "@/types/tailor"
 export function OperationsView({ operations, onAdd, onEdit, onPrint }: { operations: TailorOperation[]; onAdd: () => void; onEdit: (operation: TailorOperation) => void; onPrint: (operation: TailorOperation) => void }) {
   const [search, setSearch] = useState("")
   const [period, setPeriod] = useState("all")
+  const [pendingId, setPendingId] = useState<string | null>(null)
   const filtered = useMemo(() => operations.filter((operation) => {
     const query = search.trim().toLowerCase()
     const text = [operation.pieceType, operation.notes, ...operation.customers.flatMap((customer) => [customer.name, customer.pageNumber])].join(" ").toLowerCase()
@@ -25,15 +26,15 @@ export function OperationsView({ operations, onAdd, onEdit, onPrint }: { operati
   }), [operations, period, search])
 
   async function remove(operation: TailorOperation) {
-    if (!window.confirm(`حذف عملية ${operation.pieceType}؟`)) return
-    await db.operations.delete(operation.id)
-    toast.success("تم حذف العملية")
+    if (pendingId || !window.confirm(`حذف عملية ${operation.pieceType}؟`)) return
+    setPendingId(operation.id)
+    try { await db.operations.delete(operation.id); toast.success("تم حذف العملية") } catch { toast.error("تعذر حذف العملية") } finally { setPendingId(null) }
   }
 
   async function duplicate(operation: TailorOperation) {
-    const now = new Date().toISOString()
-    await saveOperation({ ...operation, id: crypto.randomUUID(), date: now, createdAt: now, updatedAt: now, customers: operation.customers.map((customer) => ({ ...customer, id: crypto.randomUUID() })) })
-    toast.success("تم إنشاء نسخة جديدة من العملية")
+    if (pendingId) return
+    setPendingId(operation.id)
+    try { const now = new Date().toISOString(); await saveOperation({ ...operation, id: crypto.randomUUID(), date: now, createdAt: now, updatedAt: now, customers: operation.customers.map((customer) => ({ ...customer, id: crypto.randomUUID() })) }); toast.success("تم إنشاء نسخة جديدة من العملية") } catch { toast.error("تعذر نسخ العملية") } finally { setPendingId(null) }
   }
 
   return (
@@ -56,7 +57,7 @@ export function OperationsView({ operations, onAdd, onEdit, onPrint }: { operati
               <CardContent className="flex flex-col gap-4 pt-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-accent font-bold text-accent-foreground">{operation.quantity}</span><div><h2 className="font-semibold">{operation.pieceType}</h2><p className="text-xs text-muted-foreground">{new Intl.DateTimeFormat("ar-SA", { dateStyle: "medium" }).format(new Date(operation.date))}</p></div></div>
-                  <DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="إجراءات العملية" />}><MoreHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuGroup><DropdownMenuItem onClick={() => onEdit(operation)}><Pencil />تعديل</DropdownMenuItem><DropdownMenuItem onClick={() => duplicate(operation)}><Copy />نسخ كعملية جديدة</DropdownMenuItem><DropdownMenuItem onClick={() => onPrint(operation)}><Printer />طباعة العملية</DropdownMenuItem><DropdownMenuItem variant="destructive" onClick={() => remove(operation)}><Trash2 />حذف</DropdownMenuItem></DropdownMenuGroup></DropdownMenuContent></DropdownMenu>
+                  <DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="إجراءات العملية" />}><MoreHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuGroup><DropdownMenuItem onClick={() => onEdit(operation)}><Pencil />تعديل</DropdownMenuItem><DropdownMenuItem disabled={pendingId === operation.id} onClick={() => duplicate(operation)}><Copy />نسخ كعملية جديدة</DropdownMenuItem><DropdownMenuItem onClick={() => onPrint(operation)}><Printer />طباعة العملية</DropdownMenuItem><DropdownMenuItem disabled={pendingId === operation.id} variant="destructive" onClick={() => remove(operation)}><Trash2 />حذف</DropdownMenuItem></DropdownMenuGroup></DropdownMenuContent></DropdownMenu>
                 </div>
                 <div className="flex flex-wrap gap-2">{operation.customers.length ? operation.customers.map((customer) => <Badge key={customer.id} variant="secondary">{customer.name || "عميل"}{customer.pageNumber ? ` · ص ${customer.pageNumber}` : ""}</Badge>) : <Badge variant="outline">دون عميل</Badge>}</div>
                 <div className="grid grid-cols-3 gap-2 rounded-xl bg-muted p-3 text-sm"><div><p className="text-xs text-muted-foreground">الإجمالي</p><strong>{formatMoney(operationTotal(operation), operation.currency)}</strong></div><div><p className="text-xs text-muted-foreground">المسحوب</p><strong>{formatMoney(operation.paid, operation.currency)}</strong></div><div><p className="text-xs text-muted-foreground">المتبقي</p><strong className="text-primary">{formatMoney(operationRemaining(operation), operation.currency)}</strong></div></div>

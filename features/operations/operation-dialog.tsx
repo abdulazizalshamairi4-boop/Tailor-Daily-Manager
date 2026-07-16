@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useFieldArray, useForm, useWatch } from "react-hook-form"
-import { ChevronDown, Plus, Save, Trash2 } from "lucide-react"
+import { ChevronDown, LoaderCircle, Plus, Save, Trash2 } from "lucide-react"
 import { z } from "zod"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -48,8 +48,10 @@ export function OperationDialog({ open, onOpenChange, operation }: { open: boole
     const result = schema.safeParse(raw)
     if (!result.success) { toast.error("راجع الحقول المطلوبة"); return }
     const data = result.data; const now = new Date().toISOString(); const existing = operation?.customers ?? []
-    await saveOperation({ ...data, id: operation?.id ?? crypto.randomUUID(), date: new Date(`${data.date}T12:00:00`).toISOString(), customers: data.customers.filter((customer) => customer.name.trim() || customer.pageNumber.trim()).map((customer, index) => ({ ...customer, id: existing[index]?.id ?? crypto.randomUUID() })), createdAt: operation?.createdAt ?? now, updatedAt: now })
-    toast.success(operation ? "تم تحديث العملية" : "تم حفظ العملية بنجاح"); onOpenChange(false)
+    try {
+      await saveOperation({ ...data, id: operation?.id ?? crypto.randomUUID(), date: new Date(`${data.date}T12:00:00`).toISOString(), customers: data.customers.filter((customer) => customer.name.trim() || customer.pageNumber.trim()).map((customer, index) => ({ ...customer, id: existing[index]?.id ?? crypto.randomUUID() })), createdAt: operation?.createdAt ?? now, updatedAt: now })
+      toast.success(operation ? "تم تحديث العملية" : "تم حفظ العملية بنجاح"); onOpenChange(false)
+    } catch { toast.error("تعذر حفظ العملية") }
   }
 
   return <Drawer open={open} onOpenChange={onOpenChange} showSwipeHandle>
@@ -76,7 +78,7 @@ export function OperationDialog({ open, onOpenChange, operation }: { open: boole
           <Field><FieldLabel htmlFor="notes">ملاحظات العملية</FieldLabel><Textarea id="notes" rows={3} {...form.register("notes")} /></Field>
         </FieldGroup>
       </form>
-      <DrawerFooter className="flex-row"><Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>إلغاء</Button><Button type="submit" form="operation-form" className="flex-1" disabled={form.formState.isSubmitting}><Save data-icon="inline-start" />حفظ</Button></DrawerFooter>
+      <DrawerFooter className="flex-row"><Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>إلغاء</Button><Button type="submit" form="operation-form" className="flex-1" disabled={form.formState.isSubmitting}>{form.formState.isSubmitting ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <Save data-icon="inline-start" />}{form.formState.isSubmitting ? "جارٍ الحفظ" : "حفظ"}</Button></DrawerFooter>
     </DrawerContent>
   </Drawer>
 }

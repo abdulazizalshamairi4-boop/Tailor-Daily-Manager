@@ -48,6 +48,15 @@ export async function saveBackupRecord(payload: string, source: BackupRecord["so
   return record
 }
 
+export async function saveBackupFailure(error: string, source: BackupRecord["source"] = "local") {
+  const record: BackupRecord = { id: crypto.randomUUID(), createdAt: new Date().toISOString(), size: 0, source, status: "failed", error }
+  await db.transaction("rw", db.backups, db.settings, async () => {
+    await db.backups.put(record)
+    await db.settings.update("main", { lastBackupStatus: "failed" })
+  })
+  return record
+}
+
 export async function restoreBackup(operations: TailorOperation[], settings: AppSettings | undefined, mode: "merge" | "replace") {
   await db.transaction("rw", db.operations, db.settings, async () => {
     if (mode === "replace") await db.operations.clear()
