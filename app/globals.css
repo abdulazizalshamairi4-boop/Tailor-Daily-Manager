@@ -53,7 +53,8 @@
 }
 
 @layer components {
-  .hero-panel { background: var(--primary); color: var(--primary-foreground); box-shadow: 0 24px 70px color-mix(in oklch, var(--primary) 20%, transparent); }
+  .hero-panel { background: linear-gradient(135deg, var(--primary), color-mix(in oklch, var(--primary) 88%, var(--accent))); color: var(--primary-foreground); box-shadow: 0 24px 70px color-mix(in oklch, var(--primary) 20%, transparent); }
+  .hero-panel::after { content: ""; position: absolute; inset: auto -10% -55% auto; width: 22rem; height: 22rem; border-radius: 9999px; background: color-mix(in oklch, var(--accent) 14%, transparent); pointer-events: none; }
   .stat-card { box-shadow: 0 10px 30px color-mix(in oklch, var(--foreground) 5%, transparent); }
   .eyebrow { @apply mb-1 text-xs font-bold tracking-wider text-muted-foreground; }
 }

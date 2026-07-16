@@ -57,7 +57,6 @@ export interface AppSettings {
   backupSecret?: string
   lastBackupAt?: string
   lastBackupStatus?: "success" | "failed"
-  driveClientId: string
 }
 
 export type AppView = "dashboard" | "operations" | "customers" | "reports" | "print" | "backup" | "settings"
@@ -71,7 +70,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: "light",
   autoBackup: true,
   backupSchedule: "weekly",
-  driveClientId: "",
 }
 
 export const PIECE_TYPES = ["ثوب", "بدلة", "قميص", "بنطال", "عباءة", "جاكيت"] as const
