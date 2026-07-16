@@ -1,0 +1,5 @@
+export { CustomersView } from "./customers-view"
+export { ReportsView } from "./reports-view"
+export { PrintCenter } from "./print-center"
+export { BackupView, SettingsView } from "./backup-settings"
+export { DEFAULT_SETTINGS } from "@/types/tailor"
